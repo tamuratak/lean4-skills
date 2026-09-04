@@ -158,6 +158,7 @@ if [ -z "$uv_include" ] && [ -n "${EMSDK:-}" ]; then
   done
 fi
 [ -n "$uv_include" ] || die 'cannot find uv.h; set LEAN_WASM_UV_INCLUDE to an Emscripten Node include directory'
+uv_include=$(cd "$uv_include" && pwd -P) || die "cannot resolve uv include directory: $uv_include"
 
 runtime_sources=(
   debug.cpp thread.cpp mpz.cpp utf8.cpp object.cpp apply.cpp exception.cpp

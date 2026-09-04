@@ -9,7 +9,11 @@ usage() {
     '  --sysroot DIR      Emscripten Lean sysroot (required)' \
     '  --out-dir DIR      Output directory (default: build/wasm)' \
     '  --stdlib MODE      init or init-std (default: init)' \
-    '  --help             Show this help'
+    '  --help             Show this help' \
+    '' \
+    'Environment:' \
+    '  LEAN_ROOT=DIR      Project root when SOURCE is outside the current directory' \
+    '  EMCC_BATCH_BUILD=N Override Emscripten batch system-library compilation'
 }
 
 die() {
@@ -80,6 +84,8 @@ emxx_bin=$(command -v "$emxx_cmd" 2>/dev/null || true)
 export EM_CACHE=${EM_CACHE:-${TMPDIR:-/tmp}/leanscripten-emcache}
 # Some macOS Emscripten Node bundles expect a system OpenSSL config file.
 export OPENSSL_CONF=${OPENSSL_CONF:-/dev/null}
+# Avoid invalid relative source paths in Emscripten's batch system-library builds.
+export EMCC_BATCH_BUILD=${EMCC_BATCH_BUILD:-0}
 
 sysroot=$(cd "$sysroot" 2>/dev/null && pwd -P) || die "sysroot does not exist: $sysroot"
 [ -f "$sysroot/include/lean/lean.h" ] || die "missing sysroot header: $sysroot/include/lean/lean.h"
@@ -95,7 +101,7 @@ project_root=$(cd "$project_root" 2>/dev/null && pwd -P) || die "project root do
 case "$source_file" in
   "$project_root"/*) ;;
   *)
-    [ -n "${LEAN_ROOT:-}" ] || project_root=$(dirname "$source_file")
+    [ -n "${LEAN_ROOT:-}" ] || die 'source file is outside the current project root; set LEAN_ROOT'
     ;;
 esac
 

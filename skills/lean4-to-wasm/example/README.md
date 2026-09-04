@@ -6,6 +6,9 @@ In the commands below, `<skill-dir>` means the absolute path to the parent
 `lean4-to-wasm` directory. Paths under `build/` are relative to the directory
 from which the command is run.
 
+Set `LEAN_ROOT` to the project root when the input file is outside the current
+working directory.
+
 ## The source
 
 `<skill-dir>/example/Main.lean` defines the program entry point:
@@ -57,6 +60,8 @@ LEAN_ROOT=<skill-dir> \
 ~~~
 
 That command produces `Main.c`, `Main.js`, and `Main.wasm` in `build/example`. The JavaScript file is the Emscripten loader; the WebAssembly file is the compiled program.
+
+The application helper disables Emscripten's batch system-library compilation by default because some Emscripten installations produce invalid relative pthread source paths in batch mode. Set `EMCC_BATCH_BUILD=1` only when the installed toolchain is known to support it.
 
 ## The result
 

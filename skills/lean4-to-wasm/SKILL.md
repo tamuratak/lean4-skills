@@ -39,6 +39,10 @@ In the commands below, `<skill-dir>` means the absolute path to this
 `lean4-to-wasm` directory. Paths under `build/` are relative to the directory
 from which the command is run.
 
+Set `LEAN_ROOT` to the project root when the input file is outside the current
+working directory. The application helper rejects that case if `LEAN_ROOT` is
+not set rather than guessing the project root.
+
 Build the `Init` runtime and standard library:
 
 ~~~sh
@@ -112,7 +116,8 @@ lean -R <skill-dir> \
 Compile the generated C:
 
 ~~~sh
-emcc -O2 -DLEAN_EMSCRIPTEN -pthread \
+OPENSSL_CONF=/dev/null \
+  emcc -O2 -DLEAN_EMSCRIPTEN -pthread \
   -Ibuild/wasm-sysroot/include \
   -c build/Main.c -o build/Main.o
 ~~~
@@ -120,7 +125,9 @@ emcc -O2 -DLEAN_EMSCRIPTEN -pthread \
 Link the object file with the target-specific libraries:
 
 ~~~sh
-em++ build/Main.o \
+OPENSSL_CONF=/dev/null \
+EMCC_BATCH_BUILD=0 \
+  em++ build/Main.o \
   -Lbuild/wasm-sysroot/lib \
   -Wl,--start-group -lInit -Wl,--end-group -lleanrt \
   -pthread -fwasm-exceptions \
@@ -138,6 +145,8 @@ For `Std`, use `-Wl,--start-group -lStd -lInit -Wl,--end-group` before `-lleanrt
 The compiler, Lean headers, runtime C++, and generated standard-library C must be kept in sync. `function signature mismatch` and missing Lean symbols generally indicate that `LEAN_SOURCE_DIR` does not match the installed `lean`. Do not silence those errors by reusing host archives.
 
 The tested configuration was Lean 4.33.1, Emscripten 6.0.9, and Node.js 24.19.0. Emscripten's `-pthread` plus `ALLOW_MEMORY_GROWTH` warning is expected for this configuration.
+
+The application helper sets `EMCC_BATCH_BUILD=0` by default because Emscripten's batch system-library build can produce invalid relative source paths for pthread support. Set `EMCC_BATCH_BUILD=1` only when the installed Emscripten toolchain is known to handle that mode; batch compilation may be faster.
 
 Some macOS Node installations cannot read the system OpenSSL configuration in a restricted environment. In that case use `OPENSSL_CONF=/dev/null` both while invoking the helper and when running the generated JavaScript. Emscripten's cache must also be writable; set `EM_CACHE=/tmp/lean4-wasm-cache` when necessary.
 
