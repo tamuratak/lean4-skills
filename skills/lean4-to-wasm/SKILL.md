@@ -35,11 +35,15 @@ lean --version
 emcc --version
 ~~~
 
+In the commands below, `<skill-dir>` means the absolute path to this
+`lean4-to-wasm` directory. Paths under `build/` are relative to the directory
+from which the command is run.
+
 Build the `Init` runtime and standard library:
 
 ~~~sh
 LEAN_SOURCE_DIR=/path/to/lean4 \
-  scripts/build_wasm_sysroot.sh \
+  <skill-dir>/scripts/build_wasm_sysroot.sh \
   --out-dir build/wasm-sysroot \
   --stdlib init \
   --jobs 4
@@ -49,7 +53,7 @@ If the program imports `Std`, build both packages:
 
 ~~~sh
 LEAN_SOURCE_DIR=/path/to/lean4 \
-  scripts/build_wasm_sysroot.sh \
+  <skill-dir>/scripts/build_wasm_sysroot.sh \
   --out-dir build/wasm-sysroot \
   --stdlib init-std \
   --jobs 4
@@ -60,7 +64,7 @@ If `uv.h` cannot be found, provide the Emscripten Node include directory explici
 ~~~sh
 LEAN_SOURCE_DIR=/path/to/lean4 \
 LEAN_WASM_UV_INCLUDE=/path/to/emsdk/node/<version>/include/node \
-  scripts/build_wasm_sysroot.sh --out-dir build/wasm-sysroot
+  <skill-dir>/scripts/build_wasm_sysroot.sh --out-dir build/wasm-sysroot
 ~~~
 
 `stage0/stdlib` is generated C checked into the Lean source tree. If those files are absent, build or obtain a complete Lean source tree before running the helper.
@@ -70,11 +74,12 @@ LEAN_WASM_UV_INCLUDE=/path/to/emsdk/node/<version>/include/node \
 Use the application helper:
 
 ~~~sh
-scripts/lean_to_wasm.sh \
+LEAN_ROOT=<skill-dir> \
+  <skill-dir>/scripts/lean_to_wasm.sh \
   --sysroot build/wasm-sysroot \
   --stdlib init \
   --out-dir build/example \
-  example/Main.lean
+  <skill-dir>/example/Main.lean
 
 OPENSSL_CONF=/dev/null node build/example/Main.js hello world
 ~~~
@@ -84,11 +89,11 @@ The helper creates `Main.c`, `Main.js`, `Main.wasm`, and an intermediate object 
 Use `--stdlib init-std` for a source file that imports `Std`:
 
 ~~~sh
-scripts/lean_to_wasm.sh \
+<skill-dir>/scripts/lean_to_wasm.sh \
   --sysroot build/wasm-sysroot \
   --stdlib init-std \
   --out-dir build/example \
-  example/StdExample.lean
+  <input>.lean
 ~~~
 
 The helper targets Node.js. Browser builds need different Emscripten settings, especially the `ENVIRONMENT` setting and the JavaScript module interface.
@@ -98,10 +103,10 @@ The helper targets Node.js. Browser builds need different Emscripten settings, e
 The first stage is:
 
 ~~~sh
-lean -R . \
+lean -R <skill-dir> \
   --c=build/Main.c \
   -Dcompiler.postponeCompile=false \
-  Main.lean
+  <skill-dir>/example/Main.lean
 ~~~
 
 Compile the generated C:
@@ -140,4 +145,4 @@ External native libraries, Lean plugins, filesystem features, and network featur
 
 ## Example
 
-`example/README.md` is a self-contained English explanation of the example. `example/Main.lean` is the source, `example/Main.c` is the C output produced by `lean`, and `example/run-output.txt` records the observed Node.js output.
+`<skill-dir>/example/README.md` is a self-contained English explanation of the example. `<skill-dir>/example/Main.lean` is the source, `<skill-dir>/example/Main.c` is the C output produced by `lean`, and `<skill-dir>/example/run-output.txt` records the observed Node.js output.
