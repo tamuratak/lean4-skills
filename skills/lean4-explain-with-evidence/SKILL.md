@@ -5,7 +5,7 @@ description: Answer questions about Lean 4 programming, types, elaboration, tact
 
 # Lean 4 Explanations with Evidence
 
-Ground answers to Lean questions in actual Lean execution. Gather enough evidence to support the explanation, then show only what helps the user understand it. A successful check can be reported in one sentence without displaying a log.
+Ground answers to Lean questions in actual Lean execution. Gather enough evidence to support the explanation, then show only what helps the user understand it. Always briefly state what you ran, how you checked it, and what happened. A successful check can be reported in one sentence without displaying a log.
 
 Before giving a technical answer, run Lean on a probe directly relevant to the user's question, subject to the execution limitations below.
 
@@ -64,7 +64,11 @@ Use `lean --run Evidence.lean` or `lake env lean --run Evidence.lean` when actua
 
 Lead with the answer, connect it to the observed evidence, and explain why that evidence supports it. Match the user's language and level of familiarity; the skill's English instructions do not require an English answer.
 
-- **Success confirmation:** State that the exact example was checked successfully. Omit empty logs, routine commands, and a separate evidence section when they add nothing. Include the version when compatibility matters.
+Include a concise verification note in the final answer, even when no logs are shown. Usually one sentence, or two when needed, is enough. Identify the tested expression, proof, or program; name the execution method, such as `#eval`, compilation with `lean` or `lake env lean`, or goal inspection with `trace_state`; and state the observed outcome. If you checked a simplified reproducer rather than the user's exact code, make that scope clear. Tool activity and progress updates do not replace this note, since the user may not see them.
+
+Integrate the note into the explanation naturally. Include the Lean version or project environment when it affects the answer. Routine setup steps, temporary paths, full command transcripts, and a separate verification section are unnecessary unless they help the user reproduce or assess the result. A bare statement such as "verified" or "it works" does not identify what was actually checked.
+
+- **Success confirmation:** Briefly identify the example, the checking method, and the successful result. Omit empty logs and routine setup details. For example, after a successful run: "I checked your `2 + 3 = 5` example with `lean` in a temporary file; it completed without errors."
 - **Computed value or type:** Show the small relevant expression and its observed result or type. Explain only the details needed to answer the question.
 - **Error explanation:** Quote the decisive diagnostic with enough surrounding information to preserve its meaning. Explain the cause and, when relevant, the independently checked correction.
 - **Tactic or elaboration explanation:** Show the few goal states or trace lines that explain the change. Annotate their significance instead of pasting an entire trace.
@@ -85,6 +89,6 @@ theorem preserve (P : Prop) : P → P := by
   exact h
 ```
 
-Explain the transition from the goal `P → P` to the hypothesis `h : P` and goal `P`, using the captured states. The complete proof lets Lean check that the illustrated transition leads to an accepted proof.
+Explain the transition from the goal `P → P` to the hypothesis `h : P` and goal `P`, using the captured states. Briefly say that you compiled this proof with `trace_state` before and after `intro h` to obtain those states. The complete proof lets Lean check that the illustrated transition leads to an accepted proof.
 
-For a request to confirm that `example : 2 + 3 = 5 := by rfl` works, run that exact example. If it succeeds without a relevant qualification, a short statement that Lean checked it successfully is sufficient; no log needs to be shown.
+For a request to confirm that `example : 2 + 3 = 5 := by rfl` works, run that exact example. If it succeeds without a relevant qualification, briefly identify the example, say how you checked it, and report success; no log needs to be shown.

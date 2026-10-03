@@ -19,6 +19,6 @@ The toolchain requires Lean 4, Emscripten, and Node.js. See the skill's [`SKILL.
 
 ### `lean4-explain-with-evidence`
 
-Answer Lean 4 questions by running focused experiments and explaining the relevant computed results, inferred types, diagnostics, or proof states. Show only the evidence that helps answer the question; a successful check can be reported without displaying a log.
+Answer Lean 4 questions by running focused experiments and explaining the relevant computed results, inferred types, diagnostics, or proof states. Always briefly identify what was run, how it was checked, and the outcome. Show only the evidence that helps answer the question; a successful check can be reported without displaying a log.
 
 The skill lives in [`skills/lean4-explain-with-evidence`](skills/lean4-explain-with-evidence). See its [`SKILL.md`](skills/lean4-explain-with-evidence/SKILL.md) for the workflow and evidence presentation guidance.
