@@ -1,6 +1,6 @@
 ---
 name: lean4-to-wasm
-description: Compile Lean 4 source to C with lean, then cross-compile the generated C and a matching Lean runtime and standard library to WebAssembly with Emscripten.
+description: Compile Lean 4 source to C with lean, then cross-compile the generated C and a Lean runtime and standard library to WebAssembly with Emscripten.
 metadata:
   short-description: Lean 4 to C and WebAssembly
 ---
@@ -19,7 +19,7 @@ The generated C is not standalone. It includes Lean runtime APIs from `lean/lean
 ## Requirements
 
 - `lean`, `emcc`, `em++`, `emar`, and Node.js are available on `PATH`.
-- `LEAN_SOURCE_DIR` points to a Lean 4 source tree whose runtime and `stage0/stdlib` match the installed `lean` compiler. An installed toolchain's `src/lean` directory alone is not enough because it does not contain the C++ runtime sources.
+- `LEAN_SOURCE_DIR` points to a Lean 4 source tree containing the runtime and `stage0/stdlib`. An installed toolchain's `src/lean` directory alone is not enough because it does not contain the C++ runtime sources.
 - The Lean source tree contains `src/runtime`, `src/include/lean`, and generated C files under `stage0/stdlib`.
 - Emscripten's Node headers are available. The helper detects them through `EMSDK_NODE` or `EMSDK`; set `LEAN_WASM_UV_INCLUDE` to the directory containing `uv.h` when detection fails.
 
@@ -140,9 +140,11 @@ EMCC_BATCH_BUILD=0 \
 
 For `Std`, use `-Wl,--start-group -lStd -lInit -Wl,--end-group` before `-lleanrt`.
 
-## Version and ABI constraints
+## Version and ABI troubleshooting
 
-The compiler, Lean headers, runtime C++, and generated standard-library C must be kept in sync. `function signature mismatch` and missing Lean symbols generally indicate that `LEAN_SOURCE_DIR` does not match the installed `lean`. Do not silence those errors by reusing host archives.
+Exact version equality between the installed `lean` compiler and `LEAN_SOURCE_DIR`, including the patch version, is not a prerequisite for using this skill. Proceed with the available source tree; do not refuse or stop solely because the version numbers differ. Compatibility depends on the APIs and ABI used by the generated C, runtime, and standard library, so a version difference alone does not establish incompatibility.
+
+If compilation, linking, or execution fails, a version difference between the compiler and source tree may be one possible cause. For errors such as `function signature mismatch` or missing Lean symbols, investigate compatibility between the compiler, Lean headers, runtime C++, and generated standard-library C. If the evidence points to incompatibility, try a source tree corresponding to the installed compiler and rebuild the sysroot. Do not silence those errors by reusing host archives.
 
 The tested configuration was Lean 4.33.1, Emscripten 6.0.9, and Node.js 24.19.0. Emscripten's `-pthread` plus `ALLOW_MEMORY_GROWTH` warning is expected for this configuration.
 
