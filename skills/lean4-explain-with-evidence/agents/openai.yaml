@@ -1,0 +1,3 @@
+interface:
+  display_name: "Lean 4 Explanations with Evidence"
+  short_description: "Explain Lean 4 using focused, verified execution evidence"
