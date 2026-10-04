@@ -3,24 +3,32 @@
 Read this when JavaScript must call a Lean function, or the application uses
 Lean's parser or other Lean APIs.
 The basic skill helpers build only the runtime and `Init`/`Std`.
-[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains build/bridge
-components. Supply the application Lean code in the consuming project.
-The build script uses Bash; the bridge accepts application-specific C symbols.
+[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains an optional,
+usable bridge example for `String → IO String` functions and its Bash build
+helper. Choose the application's JavaScript interface based on its own
+requirements; other signatures or multiple entry points may need a different
+bridge. Supply the application Lean code in the consuming project.
 
 ## Choosing a build path
 
 | Goal | Application build path | Execution entry point |
 | --- | --- | --- |
 | Run a basic `Init`/`Std` program with `main` | `scripts/lean_to_wasm.sh` | Generated `main`, through the Node loader |
-| Call an exported Lean function from JavaScript | `scripts/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
+| Call a `String → IO String` function using the optional example | `scripts/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
+| Call Lean functions through an application-specific interface | Application's own bridge and build configuration | Entry points chosen by the application |
 
-Both paths use an Emscripten JavaScript loader. The distinction is running
+The two supplied paths use an Emscripten JavaScript loader. The distinction is running
 `main` versus calling individual Lean functions, not whether JavaScript is
 used. Function calls require initialization, value conversion, and memory
 management; the supplied API bridge is one implementation of those operations,
-and applications may supply their own instead.
+and applications may supply their own instead. The C functions `lean_wasm_init`
+and `lean_wasm_call` are defined in this example's `bridge.c`. Emscripten exposes
+them to JavaScript as `_lean_wasm_init` and `_lean_wasm_call` because the build
+explicitly exports them. Neither these names nor the `String → IO String`
+contract is required by Lean or Emscripten.
 
-Both paths first use `scripts/build_wasm_sysroot.sh` to build the Wasm runtime.
+The two supplied paths first use `scripts/build_wasm_sysroot.sh` to build the
+Wasm runtime.
 Then choose one application builder: the bridge path does not also use
 `lean_to_wasm.sh`, and the basic path does not need `bridge.c`. The bridge
 directory alone is not a complete runtime/toolchain; it reuses that sysroot.
@@ -30,9 +38,8 @@ to use Lean's parser or other Lean-package APIs. Ordinary Lean logic can also
 be exposed through the `String → IO String` contract below. This is the intended
 interface, not a claim that all ordinary programs have been validated: the
 current build adds C++ kernel/library support even for simple functions.
-It does not run an
-ordinary `main` unchanged, support arbitrary function signatures, or provide
-every Lean API. Adapt the bridge for other signatures and follow the extension
+It does not run an ordinary `main` unchanged, support arbitrary function
+signatures, or provide every Lean API. Adapt the bridge for other signatures and follow the extension
 guidance below for elaborator and other unsupported execution paths.
 
 ## Included components
@@ -49,14 +56,28 @@ These files use the repository's license. The existing skill's sysroot
 builder and runtime stubs are reused; there is no second copy, distribution
 wrapper, application Worker, elaborator seed, JSON schema, or Lean example.
 
-## Contract and build
+## Optional string bridge: contract and build
 
-The application supplies a Lean module exporting a function with the type
-`String → IO String`. The caller specifies both its exported C symbol and the
+When using this example, the application supplies a Lean module exporting a
+function with the type `String → IO String`. The caller specifies both its exported C symbol and the
 module initializer symbol found in generated C. `bridge.c` receives them as
 `LEAN_WASM_PROCESS` and `LEAN_WASM_INITIALIZER` compile definitions. Check the
 generated C signatures: this bridge assumes the one-argument IO ABI used by
 the tested compiler, and a one-argument module initializer.
+
+For example, an application module `Application.lean` can export:
+
+```lean
+@[export application_process]
+def process (input : String) : IO String :=
+  pure s!"Received: {input}"
+```
+
+Pass `--function application_process` to select this function and
+`--initializer initialize_Application` to select its generated initializer.
+The function is selected at build time; `_lean_wasm_call` invokes that function
+on each call. These symbols are examples; use the symbols generated for the
+application's own module and exported function.
 
 The ABI adjustments were tested with Lean **4.33.1** and C++ source
 commit **23393b959b33e3a8d15796b2397f8a04c315b9f4**, using Emscripten
@@ -102,11 +123,11 @@ does not include untracked files or act as a compatibility check.
 Use a fresh output directory and sysroot when changing toolchain, source,
 headers, flags, or ABI: incremental compilation uses source timestamps.
 
-## Calling from application JavaScript
+## Calling the optional example from JavaScript
 
 The generated `module.mjs` is the Emscripten loader; no handwritten JavaScript
 wrapper is supplied or required. Implement the following operations in the
-application, using whatever wrapper structure fits it:
+application when using this example, with whatever wrapper structure fits it:
 
 1. Import the loader's default module factory and await its result. The build
    uses `--no-entry`, so loader creation does not execute a Lean `main` or the

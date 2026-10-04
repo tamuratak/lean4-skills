@@ -18,7 +18,7 @@ Use this skill when a Lean 4 program must be compiled in two stages:
 
 The generated C is not standalone. It includes Lean runtime APIs from `lean/lean.h`, so host-side Lean archives must not be passed to Emscripten.
 
-Use `scripts/lean_to_wasm.sh` to run a basic `Init`/`Std` program through its generated `main`. For a JavaScript-callable Lean function or Lean-package APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). These are alternative application build paths sharing the sysroot builder; do not run both application builders for the same module.
+Use `scripts/lean_to_wasm.sh` to run a basic `Init`/`Std` program through its generated `main`. To call individual Lean functions from JavaScript, choose a C interface suited to the application's arguments, results, initialization, and memory ownership. [references/lean-api-bridge.md](references/lean-api-bridge.md) describes the additional Lean API support and an optional, usable bridge example for `String → IO String` functions. Its `lean_wasm_init` and `lean_wasm_call` functions are defined by this repository; their names and string-based interface are not requirements of Lean or Emscripten. Use or adapt that example when it fits the application, or supply another interface. The two supplied application builders share the sysroot builder; choose one for a given module.
 
 ## Requirements
 
@@ -148,7 +148,7 @@ For `Std`, use `-Wl,--start-group -lStd -lInit -Wl,--end-group` before `-lleanrt
 
 The supplied sysroot covers the basic runtime and `Init`, with optional `Std`; it does not build the `Lean` package or the C++ initialization, kernel, and library support used by general Lean APIs. `--stdlib init-std` does not add support for `import Lean` or imports such as `Lean.Data.Json.Parser`.
 
-For Lean's standard parser, elaborator, kernel support, or other Lean APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). It explains the additional generated modules, C++ support, custom initialization, ABI bridges, and JavaScript calls. `scripts/lean-api-bridge/` contains reusable build and bridge code; supply the application Lean source separately. The bundled configuration supports parser-oriented execution paths; elaborator-specific extensions are documented in the reference.
+For Lean's standard parser, elaborator, kernel support, or other Lean APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). It explains the additional generated modules, C++ support, custom initialization, and ABI adjustments. These dependencies depend on the Lean APIs used, independently of the application's JavaScript interface. `scripts/lean-api-bridge/` includes an optional `String → IO String` bridge example and its build helper; supply the application Lean source separately. The example's configuration targets parser execution; elaborator-specific extensions are documented in the reference.
 
 Do not automatically replace `lean_initialize()` in the basic helper or satisfy it with a dummy function. The Lean API bridge uses a custom entry point and ABI adjustments from a tested compiler/source combination; inspect those ABI assumptions when adapting it. A different version or source revision alone does not prevent trying a build.
 
