@@ -3,11 +3,9 @@
 Read this when JavaScript must call a Lean function, or the application uses
 Lean's parser or other Lean APIs.
 The basic skill helpers build only the runtime and `Init`/`Std`.
-[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains build/bridge components
-adapted from `lean-explainer` commit
-`f6f31d322ef08aaf28d89b486cc00f5833a8556c`, not application Lean code. Supply
-that code in the consuming project. The build script is rewritten in Bash;
-the bridge accepts application-specific C symbols.
+[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains build/bridge
+components. Supply the application Lean code in the consuming project.
+The build script uses Bash; the bridge accepts application-specific C symbols.
 
 ## Choosing a build path
 
@@ -31,8 +29,8 @@ The bridge's function-call interface does not require the supplied Lean function
 to use Lean's parser or other Lean-package APIs. Ordinary Lean logic can also
 be exposed through the `String → IO String` contract below. This is the intended
 interface, not a claim that all ordinary programs have been validated: the
-current build adds C++ kernel/library support even for simple functions and
-has been exercised with the source project's parser. It does not run an
+current build adds C++ kernel/library support even for simple functions.
+It does not run an
 ordinary `main` unchanged, support arbitrary function signatures, or provide
 every Lean API. Adapt the bridge for other signatures and follow the extension
 guidance below for elaborator and other unsupported execution paths.
@@ -60,7 +58,7 @@ module initializer symbol found in generated C. `bridge.c` receives them as
 generated C signatures: this bridge assumes the one-argument IO ABI used by
 the tested compiler, and a one-argument module initializer.
 
-The preserved ABI adjustments were tested with Lean **4.33.1** and C++ source
+The ABI adjustments were tested with Lean **4.33.1** and C++ source
 commit **23393b959b33e3a8d15796b2397f8a04c315b9f4**, using Emscripten
 **6.0.9** and Node.js **24.19.0**. This is a tested configuration, not a required
 version or commit. `build.sh` allows other versions, revisions, modified source
@@ -143,8 +141,7 @@ points instead. Host archives cannot be linked into this target.
 calls the application's generated initializer with `builtin = 1`, checks and
 releases its IO result, initializes kernel/library support, then calls
 `lean_io_mark_end_initialization`. Successful initialization is cached. This
-custom path is the concrete alternative used by the source project's parser;
-it is not equivalent to a dummy `lean_initialize` or a runtime-only call.
+custom path initializes both the imported modules and C++ support.
 If generated `main` reports a missing `lean_initialize`, inspect its call and
 the linked inputs: the basic sysroot omits `src/initialize/init.cpp`, which
 defines that broader entry point. Matching version numbers alone do not add
@@ -168,8 +165,8 @@ native results, including initialization and errors.
 
 ## Extending beyond parser execution
 
-The bundled link configuration is the parser-oriented one from
-`lean-explainer`. `excluded-elaboration.c` supplies weak stop fallbacks for meta
+The bundled link configuration targets parser execution.
+`excluded-elaboration.c` supplies weak stop fallbacks for meta
 evaluation, definitional equality, instance synthesis, and structural elaboration.
 Imported implementations override these fallbacks without duplicate-symbol
 errors; the fallbacks themselves do not implement those APIs. Importing an
@@ -180,14 +177,12 @@ To execute these APIs:
   `Lean.Meta.ExprDefEq`, `Lean.Meta.LevelDefEq`,
   `Lean.Meta.SynthInstance`, `Lean.Compiler.IR.Meta`, structural-equation and
   match-equation modules. Regenerate the dependency closure.
-- Supply the environment needed by the application. The source elaborator
-  used a kernel-checked fixed declaration seed, attributes, matcher metadata,
-  and explicit parser/macro registration to avoid distributing `.olean`
-  imports. A basic empty parser environment is insufficient for elaboration.
-- For the source project's `IO.Promise` paths, rebuild runtime/support with
+- Supply the environment needed by the application, including declarations,
+  attributes, matcher metadata, and parser/macro registration. A basic empty
+  parser environment is insufficient for elaboration.
+- For `IO.Promise` paths, rebuild runtime/support with
   `LEAN_MULTI_THREAD`, start the task manager, configure the pthread pool and
-  stacks, and save stack information after initialization. Its Wasm stack-size
-  correction uses base minus end in a private copy of `stackinfo.cpp`.
+  stacks, and save stack information after initialization.
 - Implement the filesystem/import/plugin/native-library dependencies of the
   chosen API, or explicitly stop unsupported execution paths. Do not replace
   missing functions with fabricated successful results.
