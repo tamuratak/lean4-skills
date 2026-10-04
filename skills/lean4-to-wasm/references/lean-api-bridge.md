@@ -1,12 +1,41 @@
 # Using Lean APIs in WebAssembly
 
-Read this when the application uses Lean's parser or other Lean APIs.
+Read this when JavaScript must call a Lean function, or the application uses
+Lean's parser or other Lean APIs.
 The basic skill helpers build only the runtime and `Init`/`Std`.
 [assets/lean-api-bridge](../assets/lean-api-bridge/) contains build/bridge components
 adapted from `lean-explainer` commit
 `f6f31d322ef08aaf28d89b486cc00f5833a8556c`, not application Lean code. Supply
 that code in the consuming project. The build script is rewritten in Bash;
 the bridge accepts application-specific C symbols.
+
+## Choosing a build path
+
+| Goal | Application build path | Execution entry point |
+| --- | --- | --- |
+| Run a basic `Init`/`Std` program with `main` | `scripts/lean_to_wasm.sh` | Generated `main`, through the Node loader |
+| Call an exported Lean function from JavaScript | `assets/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
+
+Both paths use an Emscripten JavaScript loader. The distinction is running
+`main` versus calling individual Lean functions, not whether JavaScript is
+used. Function calls require initialization, value conversion, and memory
+management; the supplied API bridge is one implementation of those operations,
+and applications may supply their own instead.
+
+Both paths first use `scripts/build_wasm_sysroot.sh` to build the Wasm runtime.
+Then choose one application builder: the bridge path does not also use
+`lean_to_wasm.sh`, and the basic path does not need `bridge.c`. The bridge
+directory alone is not a complete runtime/toolchain; it reuses that sysroot.
+
+The bridge's function-call interface does not require the supplied Lean function
+to use Lean's parser or other Lean-package APIs. Ordinary Lean logic can also
+be exposed through the `String → IO String` contract below. This is the intended
+interface, not a claim that all ordinary programs have been validated: the
+current build adds C++ kernel/library support even for simple functions and
+has been exercised with the source project's parser. It does not run an
+ordinary `main` unchanged, support arbitrary function signatures, or provide
+every Lean API. Adapt the bridge for other signatures and follow the extension
+guidance below for elaborator and other unsupported execution paths.
 
 ## Included components
 
@@ -17,7 +46,6 @@ the bridge accepts application-specific C symbols.
 | `support-init.cpp` | Initialize C++ utility, kernel, and library support |
 | `abi-compat.c` | Adapt run-init and compacted-region world arguments for the tested ABI |
 | `excluded-elaboration.c` | Stop if parser-only execution reaches excluded elaboration APIs |
-| `runtime.mjs` | Load the module and manage UTF-8 buffers across JS/C |
 
 These files use the repository's license. The existing skill's sysroot
 builder and runtime stubs are reused; there is no second copy, distribution
@@ -76,17 +104,29 @@ does not include untracked files or act as a compatibility check.
 Use a fresh output directory and sysroot when changing toolchain, source,
 headers, flags, or ABI: incremental compilation uses source timestamps.
 
-Copy `runtime.mjs` into the consuming project, then call `createLeanWasm`
-with the loader URL:
+## Calling from application JavaScript
 
-```js
-import { createLeanWasm } from './runtime.mjs';
-const lean = await createLeanWasm(new URL('./build/lean-api-bridge/module.mjs', import.meta.url));
-const output = lean.call(input);
-```
+The generated `module.mjs` is the Emscripten loader; no handwritten JavaScript
+wrapper is supplied or required. Implement the following operations in the
+application, using whatever wrapper structure fits it:
 
-The result is a string; parse JSON only if the supplied Lean function returns
-JSON. Calls are synchronous and should be serialized per module instance.
+1. Import the loader's default module factory and await its result. The build
+   uses `--no-entry`, so loader creation does not execute a Lean `main` or the
+   bridge initialization.
+2. Call the resulting module's `_lean_wasm_init()` before any processing.
+   A nonzero result is an initialization failure; do not continue to calls.
+3. Encode the input as well-formed UTF-8 without embedded NUL. Allocate
+   `lengthBytesUTF8(input) + 1` bytes with `_malloc`, check for allocation
+   failure, and use `stringToUTF8` to write the NUL-terminated input.
+4. Pass the input pointer to `_lean_wasm_call`. A zero result is an execution
+   or output allocation failure. Otherwise decode the returned pointer with
+   `UTF8ToString`. Parse JSON only if the application function returns JSON.
+5. Release both input and returned output buffers with `_free`, including
+   failure paths, for example in `finally`. Decode the result before freeing it.
+
+Calls are synchronous and should be serialized per module instance. These
+initialization and ownership operations are required by the current bridge;
+they do not require a particular JavaScript file or class structure.
 
 ## Initialization, linking, and ownership
 
@@ -109,9 +149,9 @@ the missing initialization and Lean API/native support.
 
 The C bridge creates a Lean string, calls the exported function, checks its
 IO result, and copies the returned UTF-8 string into a `malloc` buffer before
-releasing the Lean result. The JavaScript adapter frees input and output
-buffers in `finally`, including error paths. It rejects raw NUL and encodes
-well-formed UTF-8. Do not return `lean_string_cstr` after releasing its owner.
+releasing the Lean result. Application JavaScript owns both C buffers and must
+free them as described above. Do not return `lean_string_cstr` after releasing
+its owner.
 
 `abi-compat.c` supplies the world argument to renamed native implementations
 of `lean_run_init` and compacted-region read/save/free. The existing sysroot

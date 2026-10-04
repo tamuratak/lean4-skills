@@ -16,6 +16,8 @@ Use this skill when a Lean 4 program must be compiled in two stages:
 
 The generated C is not standalone. It includes Lean runtime APIs from `lean/lean.h`, so host-side Lean archives must not be passed to Emscripten.
 
+Use `scripts/lean_to_wasm.sh` to run a basic `Init`/`Std` program through its generated `main`. For a JavaScript-callable Lean function or Lean-package APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). These are alternative application build paths sharing the sysroot builder; do not run both application builders for the same module.
+
 ## Requirements
 
 - `lean`, `emcc`, `em++`, `emar`, and Node.js are available on `PATH`.
