@@ -31,12 +31,13 @@ module initializer symbol found in generated C. `bridge.c` receives them as
 generated C signatures: this bridge assumes the one-argument IO ABI used by
 the tested compiler, and a one-argument module initializer.
 
-The preserved ABI adjustments are tested with Lean **4.33.1** and C++ source
-commit **23393b959b33e3a8d15796b2397f8a04c315b9f4**. `build.sh` checks both and
-requires no tracked modifications in the source checkout's `src/`. These
-checks apply to this adapted bridge, not the basic skill. The source project
-used Emscripten **6.0.9** and Node.js **24.19.0**. The installed Lean toolchain
-must include `src/lean`; the C++ checkout must be complete.
+The preserved ABI adjustments were tested with Lean **4.33.1** and C++ source
+commit **23393b959b33e3a8d15796b2397f8a04c315b9f4**, using Emscripten
+**6.0.9** and Node.js **24.19.0**. This is a tested configuration, not a required
+version or commit. `build.sh` allows other versions, revisions, modified source
+trees, and source distributions without Git metadata. It still requires the
+installed standard-library source, complete C++ sources, and a Wasm sysroot;
+compilation and linking failures remain errors.
 
 Activate Emscripten, choose the compiler/source, and build a sysroot with the
 existing helper. `<skill-dir>` is the absolute path to this skill. Run these
@@ -45,7 +46,7 @@ with those of its module:
 
 ```sh
 source /path/to/emsdk/emsdk_env.sh
-export LEAN=/path/to/lean-4.33.1/bin/lean
+export LEAN=/path/to/lean-toolchain/bin/lean
 export LEAN_SOURCE_DIR=/path/to/lean4
 export LEAN_WASM_SYSROOT="$PWD/build/wasm-sysroot"
 export LEAN_WASM_BUILD_DIR="$PWD/build/lean-package"
@@ -67,6 +68,10 @@ need their own generation/link inputs. It does not build a Lake project.
 
 The output directory contains `module.mjs`, `module.wasm`, generated C,
 objects, archives, and `manifest.json`. Keep the loader beside its Wasm file.
+The manifest records the actual compiler and source commit, with `unknown`
+when Git metadata is unavailable. `sourceModified` records tracked changes
+under `src/` as a boolean, or `null` if that information is unavailable; it
+does not include untracked files or act as a compatibility check.
 Use a fresh output directory and sysroot when changing toolchain, source,
 headers, flags, or ABI: incremental compilation uses source timestamps.
 
@@ -110,8 +115,12 @@ well-formed UTF-8. Do not return `lean_string_cstr` after releasing its owner.
 `abi-compat.c` supplies the world argument to renamed native implementations
 of `lean_run_init` and compacted-region read/save/free. The existing sysroot
 helper includes the temporary-file/directory ABI adapter. Inspect signatures
-again for another compiler/source combination. The linker keeps signature
-warnings fatal through `--fatal-warnings`.
+again for another compiler/source combination: these adapters assume specific
+argument lists and may need to be changed or removed. Allowing another version
+does not automatically adapt the bridge to its ABI. The linker keeps signature
+warnings fatal through `--fatal-warnings`; link success alone does not establish
+runtime compatibility. Verify the application's actual execution paths against
+native results, including initialization and errors.
 
 ## Extending beyond parser execution
 

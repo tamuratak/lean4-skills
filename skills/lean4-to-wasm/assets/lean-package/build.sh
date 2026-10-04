@@ -42,12 +42,24 @@ build_started=$(date +%s)
 prefix=$("$lean_cmd" --print-prefix)
 version=$("$lean_cmd" --version)
 lean_source=$(cd "$LEAN_SOURCE_DIR" && pwd -P)
-revision=$(git -C "$lean_source" rev-parse HEAD)
-[[ "$version" == *'version 4.33.1,'* ]] &&
-  [ "$revision" = 23393b959b33e3a8d15796b2397f8a04c315b9f4 ] ||
-  die 'requires Lean 4.33.1 and source commit 23393b959b33e3a8d15796b2397f8a04c315b9f4; see references/lean-package.md'
-git -C "$lean_source" diff --quiet HEAD -- src || die 'the ABI bridges require an unchanged Lean source tree'
+# Record provenance when available; version/revision differences do not establish ABI incompatibility.
+revision=unknown
+source_modified=unknown
+if command -v git >/dev/null && revision=$(git -C "$lean_source" rev-parse HEAD 2>/dev/null); then
+  if git -C "$lean_source" diff --quiet HEAD -- src; then
+    source_modified=false
+  else
+    diff_status=$?
+    if [ "$diff_status" -eq 1 ]; then source_modified=true; fi
+  fi
+else
+  revision=unknown
+fi
 stdlib_root=$prefix/src/lean
+[ -f "$stdlib_root/Init.lean" ] || die "installed standard-library source is missing: $stdlib_root/Init.lean"
+for directory in runtime util kernel library library/constructions; do
+  [ -d "$lean_source/src/$directory" ] || die "Lean source directory is missing: $lean_source/src/$directory"
+done
 scripts=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 input_file=$(cd "$(dirname "$input_file")" && pwd -P)/$(basename "$input_file")
 lean_root=$(cd "${LEAN_ROOT:-$(dirname "$input_file")}" && pwd -P)
@@ -183,10 +195,11 @@ em++ "$out/Application.o" "$out/bridge.o" "$out/support-init.cpp.o" \
   -o "$out/module.mjs"
 build_seconds=$(( $(date +%s) - build_started ))
 # Node is already required by Emscripten; use it to escape manifest strings safely.
-node - "$out" "$version" "$revision" "$sysroot" "$generation_seconds" "$build_seconds" "$scratch/modules" <<'JS'
+node - "$out" "$version" "$revision" "$sysroot" "$generation_seconds" "$build_seconds" "$scratch/modules" "$source_modified" <<'JS'
 const fs = require('node:fs');
-const [out, compiler, sourceCommit, sysroot, generationSeconds, buildSeconds, modulesFile] = process.argv.slice(2);
+const [out, compiler, sourceCommit, sysroot, generationSeconds, buildSeconds, modulesFile, modified] = process.argv.slice(2);
 const modules = fs.readFileSync(modulesFile, 'utf8').trim().split('\n');
-fs.writeFileSync(`${out}/manifest.json`, JSON.stringify({compiler, sourceCommit, modules,
+const sourceModified = modified === 'unknown' ? null : modified === 'true';
+fs.writeFileSync(`${out}/manifest.json`, JSON.stringify({compiler, sourceCommit, sourceModified, modules,
   generationSeconds: Number(generationSeconds), buildSeconds: Number(buildSeconds), sysroot}, null, 2));
 JS

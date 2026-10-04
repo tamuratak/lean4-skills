@@ -8,7 +8,9 @@ The source's MIT license is retained in `LICENSE`.
 - `build.sh`: rewritten in Bash from `scripts/lean-wasm/build-parser.py`; accepts an external
   application source and C symbols, resolves bridge paths locally, omits
   native comparator/application distribution, and rebuilds archives without
-  stale members. Its dependency build and tested ABI checks are retained.
+  stale members. Its dependency build and ABI adjustments are retained;
+  compiler versions and source revisions are recorded rather than enforced,
+  and modified or non-Git source trees are accepted.
 - `bridge.c`: from `lean/parser-bridge.c`; makes the initializer and exported
   function configurable, renames public entry points, and removes memory metrics.
 - `runtime.mjs`: from `src/lean-wasm/parser-runtime.mjs`; renames bridge entry
