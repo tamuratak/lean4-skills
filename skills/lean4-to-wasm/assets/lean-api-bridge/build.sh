@@ -4,9 +4,9 @@ set -euo pipefail
 usage() {
   printf '%s\n' \
     'Usage: build.sh SOURCE.lean --initializer SYMBOL --function SYMBOL' \
-    'Build a caller-supplied module with the parser-oriented Lean-package bridge.' \
+    'Build a caller-supplied module with the parser-oriented Lean API bridge.' \
     'Environment: LEAN, LEAN_ROOT, LEAN_SOURCE_DIR, LEAN_WASM_SYSROOT,' \
-    '             LEAN_WASM_BUILD_DIR (default: build/lean-package), JOBS (default: 1)'
+    '             LEAN_WASM_BUILD_DIR (default: build/lean-api-bridge), JOBS (default: 1)'
 }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
@@ -65,7 +65,7 @@ input_file=$(cd "$(dirname "$input_file")" && pwd -P)/$(basename "$input_file")
 lean_root=$(cd "${LEAN_ROOT:-$(dirname "$input_file")}" && pwd -P)
 sysroot=$(cd "$LEAN_WASM_SYSROOT" && pwd -P)
 [ -f "$sysroot/include/lean/lean.h" ] && [ -f "$sysroot/lib/libleanrt.a" ] || die 'sysroot headers or runtime are missing'
-out=${LEAN_WASM_BUILD_DIR:-build/lean-package}
+out=${LEAN_WASM_BUILD_DIR:-build/lean-api-bridge}
 mkdir -p "$out/c" "$out/obj" "$out/support-obj"
 out=$(cd "$out" && pwd -P)
 scratch=$(mktemp -d "$out/.build-XXXXXX")
@@ -129,7 +129,7 @@ while [ -s "$scratch/pending" ]; do
   cat "$scratch/batch" "$scratch/modules" | LC_ALL=C sort -u > "$scratch/updated"
   mv "$scratch/updated" "$scratch/modules"
 done
-printf 'Lean-package build: %s generated standard-library modules\n' "$(wc -l < "$scratch/modules" | tr -d ' ')"
+printf 'Lean API bridge build: %s generated standard-library modules\n' "$(wc -l < "$scratch/modules" | tr -d ' ')"
 generation_seconds=$(( $(date +%s) - build_started ))
 c_flags=(-O2 -DLEAN_EMSCRIPTEN -pthread -Dmain=lean_wasm_cli_main "-I$sysroot/include")
 cpp_flags=(-std=c++20 -O2 -DNDEBUG -DLEAN_EMSCRIPTEN -pthread -fwasm-exceptions

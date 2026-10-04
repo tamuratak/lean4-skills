@@ -1,11 +1,12 @@
-# Using Lean-package APIs in WebAssembly
+# Using Lean APIs in WebAssembly
 
-Read this when the application uses Lean's parser or other Lean-package APIs.
+Read this when the application uses Lean's parser or other Lean APIs.
 The basic skill helpers build only the runtime and `Init`/`Std`.
-[assets/lean-package](../assets/lean-package/) contains build/bridge components
-adapted from `lean-explainer`, not application Lean code. Supply that code in
-the consuming project. Provenance and adaptations are recorded in
-[NOTICE.md](../assets/lean-package/NOTICE.md).
+[assets/lean-api-bridge](../assets/lean-api-bridge/) contains build/bridge components
+adapted from `lean-explainer` commit
+`f6f31d322ef08aaf28d89b486cc00f5833a8556c`, not application Lean code. Supply
+that code in the consuming project. The build script is rewritten in Bash;
+the bridge accepts application-specific C symbols.
 
 ## Included components
 
@@ -18,7 +19,7 @@ the consuming project. Provenance and adaptations are recorded in
 | `excluded-elaboration.c` | Stop if parser-only execution reaches excluded elaboration APIs |
 | `runtime.mjs` | Load the module and manage UTF-8 buffers across JS/C |
 
-`NOTICE.md` and `LICENSE` retain attribution. The existing skill's sysroot
+These files use the repository's license. The existing skill's sysroot
 builder and runtime stubs are reused; there is no second copy, distribution
 wrapper, application Worker, elaborator seed, JSON schema, or Lean example.
 
@@ -49,13 +50,13 @@ source /path/to/emsdk/emsdk_env.sh
 export LEAN=/path/to/lean-toolchain/bin/lean
 export LEAN_SOURCE_DIR=/path/to/lean4
 export LEAN_WASM_SYSROOT="$PWD/build/wasm-sysroot"
-export LEAN_WASM_BUILD_DIR="$PWD/build/lean-package"
+export LEAN_WASM_BUILD_DIR="$PWD/build/lean-api-bridge"
 export JOBS=1
 export OPENSSL_CONF=/dev/null
 export EMCC_BATCH_BUILD=0
 export EM_CACHE="$PWD/build/emcache"
 <skill-dir>/scripts/build_wasm_sysroot.sh --out-dir "$LEAN_WASM_SYSROOT" --stdlib init --jobs "$JOBS"
-bash <skill-dir>/assets/lean-package/build.sh /path/to/project/Application.lean \
+bash <skill-dir>/assets/lean-api-bridge/build.sh /path/to/project/Application.lean \
   --initializer initialize_Application --function application_process
 ```
 
@@ -80,7 +81,7 @@ with the loader URL:
 
 ```js
 import { createLeanWasm } from './runtime.mjs';
-const lean = await createLeanWasm(new URL('./build/lean-package/module.mjs', import.meta.url));
+const lean = await createLeanWasm(new URL('./build/lean-api-bridge/module.mjs', import.meta.url));
 const output = lean.call(input);
 ```
 
@@ -104,7 +105,7 @@ it is not equivalent to a dummy `lean_initialize` or a runtime-only call.
 If generated `main` reports a missing `lean_initialize`, inspect its call and
 the linked inputs: the basic sysroot omits `src/initialize/init.cpp`, which
 defines that broader entry point. Matching version numbers alone do not add
-the missing initialization and Lean-package/native support.
+the missing initialization and Lean API/native support.
 
 The C bridge creates a Lean string, calls the exported function, checks its
 IO result, and copies the returned UTF-8 string into a `malloc` buffer before

@@ -144,9 +144,9 @@ For `Std`, use `-Wl,--start-group -lStd -lInit -Wl,--end-group` before `-lleanrt
 
 The supplied sysroot covers the basic runtime and `Init`, with optional `Std`; it does not build the `Lean` package or the C++ initialization, kernel, and library support used by general Lean APIs. `--stdlib init-std` does not add support for `import Lean` or imports such as `Lean.Data.Json.Parser`.
 
-For Lean's standard parser, elaborator, kernel support, or other Lean-package APIs, read [references/lean-package.md](references/lean-package.md). It explains the additional generated modules, C++ support, custom initialization, ABI bridges, and JavaScript calls. `assets/lean-package/` contains only reusable build and bridge code adapted from `lean-explainer`; supply the application Lean source separately. The bundled configuration supports parser-oriented execution paths; elaborator-specific extensions are documented in the reference.
+For Lean's standard parser, elaborator, kernel support, or other Lean APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). It explains the additional generated modules, C++ support, custom initialization, ABI bridges, and JavaScript calls. `assets/lean-api-bridge/` contains only reusable build and bridge code adapted from `lean-explainer`; supply the application Lean source separately. The bundled configuration supports parser-oriented execution paths; elaborator-specific extensions are documented in the reference.
 
-Do not automatically replace `lean_initialize()` in the basic helper or satisfy it with a dummy function. The Lean-package bridge uses a custom entry point and ABI adjustments from a tested compiler/source combination; inspect those ABI assumptions when adapting it. A different version or source revision alone does not prevent trying a build.
+Do not automatically replace `lean_initialize()` in the basic helper or satisfy it with a dummy function. The Lean API bridge uses a custom entry point and ABI adjustments from a tested compiler/source combination; inspect those ABI assumptions when adapting it. A different version or source revision alone does not prevent trying a build.
 
 ## Version and ABI troubleshooting
 
