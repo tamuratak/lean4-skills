@@ -35,9 +35,10 @@ directory alone is not a complete runtime/toolchain; it reuses that sysroot.
 
 The bridge's function-call interface does not require the supplied Lean function
 to use Lean's parser or other Lean-package APIs. Ordinary Lean logic can also
-be exposed through the `String → IO String` contract below. This is the intended
-interface, not a claim that all ordinary programs have been validated: the
-current build adds C++ kernel/library support even for simple functions.
+be exposed through the `String → IO String` contract below. This describes the
+bridge's calling contract; it does not mean that all functions with this type
+have been tested. The current build adds C++ kernel/library support even for
+simple functions.
 It does not run an ordinary `main` unchanged, support arbitrary function
 signatures, or provide every Lean API. Adapt the bridge for other signatures and follow the extension
 guidance below for elaborator and other unsupported execution paths.
