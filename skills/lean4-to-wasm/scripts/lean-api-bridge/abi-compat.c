@@ -1,4 +1,5 @@
 #include <lean/lean.h>
+/* Keep these wrappers in sync with the ABI renames in build.sh's compile_support. */
 extern lean_object *lean_run_init_with_world(lean_object*,lean_object*,lean_object*,lean_object*,lean_object*);
 extern lean_object *lean_compacted_region_read_with_world(lean_object*,lean_object*,lean_object*);
 extern lean_object *lean_compacted_region_save_with_world(lean_object*,lean_object*,lean_object*,lean_object*,lean_object*,uint8_t,lean_object*);

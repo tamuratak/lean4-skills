@@ -94,9 +94,10 @@ queue_job() {
   if [ "${#pids[@]}" -ge "$jobs" ]; then wait_jobs; fi
 }
 
-# Generated C records direct imports on line three, including "import all".
+# Read direct imports from the leading generated C comments, including "import all".
 imports() {
-  awk 'NR == 3 {
+  awk '!/^\/\// { exit }
+  /^\/\// {
     while (match($0, /import (all )?[A-Za-z0-9_.]+/)) {
       name = substr($0, RSTART, RLENGTH)
       sub(/^import (all )?/, "", name)
@@ -116,6 +117,9 @@ generate() {
 }
 program=$out/Application.c
 "$lean_cmd" "--root=$lean_root" "--c=$program" "$input_file"
+# Check the definition, allowing a named parameter and whitespace across lines.
+tr '\n' ' ' < "$program" | grep -E "LEAN_EXPORT[[:space:]]+lean_object[[:space:]]*\\*[[:space:]]*$initializer[[:space:]]*\\([[:space:]]*uint8_t([[:space:]]+[A-Za-z_][A-Za-z0-9_]*)?[[:space:]]*\\)[[:space:]]*\\{" >/dev/null \
+  || die "$initializer does not match the expected one-argument initializer definition in $program"
 { printf '%s\n' Init; imports "$program"; } > "$scratch/pending"
 : > "$scratch/modules"
 while [ -s "$scratch/pending" ]; do
@@ -152,6 +156,7 @@ emar rcs "$out/libModules.a" "${objects[@]}"
 compile_support() {
   local src=$1 target=$2
   local flags=()
+  # Keep these ABI renames in sync with the wrappers in abi-compat.c.
   case "${src##*/}" in
     module.cpp)
       flags=(-Dlean_compacted_region_read=lean_compacted_region_read_with_world

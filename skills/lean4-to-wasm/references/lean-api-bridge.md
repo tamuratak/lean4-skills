@@ -134,6 +134,7 @@ application when using this example, with whatever wrapper structure fits it:
    bridge initialization.
 2. Call the resulting module's `_lean_wasm_init()` before any processing.
    A nonzero result is an initialization failure; do not continue to calls.
+   Failure is cached for that module instance; create a new instance to retry.
 3. Encode the input as well-formed UTF-8 without embedded NUL. Allocate
    `lengthBytesUTF8(input) + 1` bytes with `_malloc`, check for allocation
    failure, and use `stringToUTF8` to write the NUL-terminated input.
@@ -161,7 +162,8 @@ points instead. Host archives cannot be linked into this target.
 `lean_wasm_init` initializes utility support (which initializes the runtime),
 calls the application's generated initializer with `builtin = 1`, checks and
 releases its IO result, initializes kernel/library support, then calls
-`lean_io_mark_end_initialization`. Successful initialization is cached. This
+`lean_io_mark_end_initialization`. Both success and failure are cached; repeated
+calls after failure return nonzero without rerunning partial initialization. This
 custom path initializes both the imported modules and C++ support.
 If generated `main` reports a missing `lean_initialize`, inspect its call and
 the linked inputs: the basic sysroot omits `src/initialize/init.cpp`, which
