@@ -5,7 +5,7 @@ These bridge/build components are adapted from `lean-explainer`
 `f6f31d322ef08aaf28d89b486cc00f5833a8556c`, copied on 2026-10-04.
 The source's MIT license is retained in `LICENSE`.
 
-- `build.py`: from `scripts/lean-wasm/build-parser.py`; accepts an external
+- `build.sh`: rewritten in Bash from `scripts/lean-wasm/build-parser.py`; accepts an external
   application source and C symbols, resolves bridge paths locally, omits
   native comparator/application distribution, and rebuilds archives without
   stale members. Its dependency build and tested ABI checks are retained.

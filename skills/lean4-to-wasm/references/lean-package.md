@@ -11,7 +11,7 @@ the consuming project. Provenance and adaptations are recorded in
 
 | File | Purpose |
 | --- | --- |
-| `build.py` | Generate the imported standard-library C, build native support for Wasm, and link the caller's module |
+| `build.sh` | Generate the imported standard-library C, build native support for Wasm, and link the caller's module |
 | `bridge.c` | Initialize the module and call its exported Lean function from C |
 | `support-init.cpp` | Initialize C++ utility, kernel, and library support |
 | `abi-compat.c` | Adapt run-init and compacted-region world arguments for the tested ABI |
@@ -32,7 +32,7 @@ generated C signatures: this bridge assumes the one-argument IO ABI used by
 the tested compiler, and a one-argument module initializer.
 
 The preserved ABI adjustments are tested with Lean **4.33.1** and C++ source
-commit **23393b959b33e3a8d15796b2397f8a04c315b9f4**. `build.py` checks both and
+commit **23393b959b33e3a8d15796b2397f8a04c315b9f4**. `build.sh` checks both and
 requires no tracked modifications in the source checkout's `src/`. These
 checks apply to this adapted bridge, not the basic skill. The source project
 used Emscripten **6.0.9** and Node.js **24.19.0**. The installed Lean toolchain
@@ -54,11 +54,11 @@ export OPENSSL_CONF=/dev/null
 export EMCC_BATCH_BUILD=0
 export EM_CACHE="$PWD/build/emcache"
 <skill-dir>/scripts/build_wasm_sysroot.sh --out-dir "$LEAN_WASM_SYSROOT" --stdlib init --jobs "$JOBS"
-python3 <skill-dir>/assets/lean-package/build.py /path/to/project/Application.lean \
+bash <skill-dir>/assets/lean-package/build.sh /path/to/project/Application.lean \
   --initializer initialize_Application --function application_process
 ```
 
-The compiler, Emscripten, Python 3, and Node.js must already be installed. If
+The compiler, Emscripten, Bash 3.2 or later, and Node.js must already be installed. If
 Node's `uv.h` is not detected, set `LEAN_WASM_UV_INCLUDE` as described in
 `SKILL.md`. Set `LEAN_ROOT` if the input module's project root differs from its
 parent directory. The minimal builder follows imports from generated C and
@@ -84,7 +84,7 @@ JSON. Calls are synchronous and should be serialized per module instance.
 
 ## Initialization, linking, and ownership
 
-`build.py` compiles generated standard-library C and the C++ `util`, `kernel`,
+`build.sh` compiles generated standard-library C and the C++ `util`, `kernel`,
 `library`, and `library/constructions` support, excluding `ffi.cpp` and
 `shell.cpp`. It links their archives with the Wasm runtime in a linker group.
 It renames a generated `main`, uses `--no-entry`, and exports the bridge entry
