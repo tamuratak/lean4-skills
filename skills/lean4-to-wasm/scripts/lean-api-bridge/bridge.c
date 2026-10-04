@@ -20,9 +20,13 @@ int lean_wasm_init(void) {
 char *lean_wasm_call(const char *input) {
     lean_object *r = LEAN_WASM_PROCESS(lean_mk_string(input));
     if (lean_io_result_is_error(r)) { lean_io_result_show_error(r); lean_dec(r); return NULL; }
-    const char *s = lean_string_cstr(lean_io_result_get_value(r));
-    char *copy = malloc(strlen(s) + 1);
-    if (copy) strcpy(copy, s);
+    lean_object *value = lean_io_result_get_value(r);
+    const char *s = lean_string_cstr(value);
+    size_t size = lean_string_size(value);
+    /* The JavaScript interface uses NUL-terminated UTF-8; reject unrepresentable output. */
+    if (memchr(s, '\0', size - 1)) { lean_dec(r); return NULL; }
+    char *copy = malloc(size);
+    if (copy) memcpy(copy, s, size);
     lean_dec(r);
     return copy;
 }

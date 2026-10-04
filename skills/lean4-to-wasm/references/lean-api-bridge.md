@@ -119,8 +119,11 @@ application, using whatever wrapper structure fits it:
    `lengthBytesUTF8(input) + 1` bytes with `_malloc`, check for allocation
    failure, and use `stringToUTF8` to write the NUL-terminated input.
 4. Pass the input pointer to `_lean_wasm_call`. A zero result is an execution
-   or output allocation failure. Otherwise decode the returned pointer with
-   `UTF8ToString`. Parse JSON only if the application function returns JSON.
+   or output allocation failure, or rejection of output containing embedded
+   NUL. The application function must return NUL-free UTF-8; the bridge rejects
+   embedded NUL instead of silently truncating the result. Otherwise decode
+   the returned pointer with `UTF8ToString`. Parse JSON only if the application
+   function returns JSON.
 5. Release both input and returned output buffers with `_free`, including
    failure paths, for example in `finally`. Decode the result before freeing it.
 
@@ -166,12 +169,15 @@ native results, including initialization and errors.
 ## Extending beyond parser execution
 
 The bundled link configuration is the parser-oriented one from
-`lean-explainer`. `excluded-elaboration.c` stops on meta evaluation,
-definitional equality, instance synthesis, and structural elaboration;
-it does not implement those APIs. To execute them:
+`lean-explainer`. `excluded-elaboration.c` supplies weak stop fallbacks for meta
+evaluation, definitional equality, instance synthesis, and structural elaboration.
+Imported implementations override these fallbacks without duplicate-symbol
+errors; the fallbacks themselves do not implement those APIs. Importing an
+implementation does not supply its execution environment or other dependencies.
+To execute these APIs:
 
-- Remove the corresponding stop stubs and import/link the actual standard
-  implementations, such as `Lean.Meta.ExprDefEq`, `Lean.Meta.LevelDefEq`,
+- Import/link the actual standard implementations, such as
+  `Lean.Meta.ExprDefEq`, `Lean.Meta.LevelDefEq`,
   `Lean.Meta.SynthInstance`, `Lean.Compiler.IR.Meta`, structural-equation and
   match-equation modules. Regenerate the dependency closure.
 - Supply the environment needed by the application. The source elaborator
