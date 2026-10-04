@@ -9,12 +9,16 @@ metadata:
 
 See [NOTICE.md](NOTICE.md) for attribution and provenance of the helper scripts.
 
+Build helpers and their C/C++ support live in `scripts/`, detailed guidance in `references/`, and the executable example in `example/`.
+
 Use this skill when a Lean 4 program must be compiled in two stages:
 
 1. `lean` generates C from the Lean source.
 2. Emscripten compiles that C, a target-specific Lean runtime, and the required standard library into a JavaScript loader and WebAssembly module.
 
 The generated C is not standalone. It includes Lean runtime APIs from `lean/lean.h`, so host-side Lean archives must not be passed to Emscripten.
+
+Use `scripts/lean_to_wasm.sh` to run a basic `Init`/`Std` program through its generated `main`. To call individual Lean functions from JavaScript, choose a C interface suited to the application's arguments, results, initialization, and memory ownership. [references/lean-api-bridge.md](references/lean-api-bridge.md) describes the additional Lean API support and an optional, usable bridge example for `String → IO String` functions. Its `lean_wasm_init` and `lean_wasm_call` functions are defined by this repository; their names and string-based interface are not requirements of Lean or Emscripten. Use or adapt that example when it fits the application, or supply another interface. The two supplied application builders share the sysroot builder; choose one for a given module.
 
 ## Requirements
 
@@ -144,11 +148,9 @@ For `Std`, use `-Wl,--start-group -lStd -lInit -Wl,--end-group` before `-lleanrt
 
 The supplied sysroot covers the basic runtime and `Init`, with optional `Std`; it does not build the `Lean` package or the C++ initialization, kernel, and library support used by general Lean APIs. `--stdlib init-std` does not add support for `import Lean` or imports such as `Lean.Data.Json.Parser`.
 
-`lean_initialize_runtime_module()` initializes the basic runtime, including allocation, Lean objects, IO, and threading. `lean_initialize()` provides broader initialization for the Lean package: the Lean source's `src/initialize/init.cpp` initializes `Init`, `Std`, and `Lean`, as well as C++ utility, kernel, and library infrastructure. These functions are not interchangeable. In Lean 4.33.1, `Lean/Compiler/LCNF/EmitC.lean` emits a call to `lean_initialize()` in a generated `main` when the environment uses modules from the `Lean` package; otherwise it calls `lean_initialize_runtime_module()`.
+For Lean's standard parser, elaborator, kernel support, or other Lean APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). It explains the additional generated modules, C++ support, custom initialization, and ABI adjustments. These dependencies depend on the Lean APIs used, independently of the application's JavaScript interface. `scripts/lean-api-bridge/` includes an optional `String → IO String` bridge example and its build helper; supply the application Lean source separately. The example's configuration targets parser execution; elaborator-specific extensions are documented in the reference.
 
-For `undefined symbol: lean_initialize`, first inspect the generated C's initialization calls and the sysroot's build and link inputs. The supplied builder compiles `src/runtime` sources and generated `Init`/`Std` C, but does not compile `src/initialize/init.cpp`, which defines `lean_initialize()`. A missing initialization entry point can therefore indicate incomplete library coverage even with matching compiler and source versions; do not attribute it to a version mismatch alone. General Lean API use requires additional Emscripten builds and linking of the needed Lean package and native dependencies.
-
-For a narrowly scoped module, a custom entry point may work by calling `lean_initialize_runtime_module()`, then the application's generated module initializer with `builtin = 1`, checking and consuming its IO result, and finally calling `lean_io_mark_end_initialization()` before application code. The module initializer initializes its imported modules, whose generated C and native dependencies must also be built and linked for WebAssembly. Verify the generated initializers, required native initialization, and execution paths for the actual compiler/source combination; this is not a general replacement for `lean_initialize()`, and successful JSON parsing does not establish support for arbitrary `import Lean`. Do not automatically replace `lean_initialize()` in the helper or satisfy it with a dummy function.
+Do not automatically replace `lean_initialize()` in the basic helper or satisfy it with a dummy function. The Lean API bridge uses a custom entry point and ABI adjustments from a tested compiler/source combination; inspect those ABI assumptions when adapting it. A different version or source revision alone does not prevent trying a build.
 
 ## Version and ABI troubleshooting
 

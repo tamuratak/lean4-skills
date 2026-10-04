@@ -1,6 +1,6 @@
 # Attribution and provenance
 
-The helper files under `scripts/` are original to this repository. They are not copied or substantially reproduced from the Lean 4 repository or from Emscripten.
+The helper files under `scripts/` are covered by the repository's license. They are not copied or substantially reproduced from the Lean 4 repository or from Emscripten.
 
 Their design was informed by, but not copied from:
 
