@@ -36,7 +36,7 @@ lean -R <skill-dir> \
 
 The result is `Main.c`. It is generated output, not hand-written application code. It includes `lean/lean.h`, declares the Lean runtime functions it uses, and contains the C `main` function that starts the Lean program.
 
-The generated C cannot be linked by itself because it depends on the Lean runtime and the `Init` standard library. A target-specific Lean sysroot was therefore built with the helper scripts:
+The generated C cannot be linked by itself because it depends on the Lean runtime and the `Init` standard library. The helper scripts build a Wasm sysroot: a directory of Lean headers and libraries compiled for WebAssembly.
 
 ~~~sh
 source /path/to/emsdk/emsdk_env.sh

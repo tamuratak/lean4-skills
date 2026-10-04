@@ -1,66 +1,54 @@
-# Using Lean APIs in WebAssembly
+# Calling Lean functions and using the Lean package in WebAssembly
 
 Read this when JavaScript must call a Lean function, or the application uses
-Lean's parser or other Lean APIs.
-The basic skill helpers build only the runtime and `Init`/`Std`.
-[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains an optional,
-usable bridge example for `String → IO String` functions and its Bash build
-helper. Choose the application's JavaScript interface based on its own
-requirements; other signatures or multiple entry points may need a different
-bridge. Supply the application Lean code in the consuming project.
+Lean's parser or other APIs from the `Lean` package.
+[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains a
+`String → IO String` bridge example and a Bash build helper configured for
+parser execution. Supply the application Lean code in the consuming project.
 
 ## Choosing a build path
 
 | Goal | Application build path | Execution entry point |
 | --- | --- | --- |
 | Run a basic `Init`/`Std` program with `main` | `scripts/lean_to_wasm.sh` | Generated `main`, through the Node loader |
-| Call a `String → IO String` function using the optional example | `scripts/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
+| Call a `String → IO String` function using the bridge example | `scripts/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
 | Call Lean functions through an application-specific interface | Application's own bridge and build configuration | Entry points chosen by the application |
 
-The two supplied paths use an Emscripten JavaScript loader. The distinction is running
-`main` versus calling individual Lean functions, not whether JavaScript is
-used. Function calls require initialization, value conversion, and memory
-management; the supplied API bridge is one implementation of those operations,
-and applications may supply their own instead. The C functions `lean_wasm_init`
-and `lean_wasm_call` are defined in this example's `bridge.c`. Emscripten exposes
-them to JavaScript as `_lean_wasm_init` and `_lean_wasm_call` because the build
-explicitly exports them. Neither these names nor the `String → IO String`
-contract is required by Lean or Emscripten.
+Both supplied paths use an Emscripten JavaScript loader. The bridge handles
+initialization, value conversion, and memory management for function calls.
+Its entry points and `String → IO String` contract are choices made by this
+example; adapt them for other signatures or multiple entry points.
 
-The two supplied paths first use `scripts/build_wasm_sysroot.sh` to build the
-Wasm runtime.
-Then choose one application builder: the bridge path does not also use
-`lean_to_wasm.sh`, and the basic path does not need `bridge.c`. The bridge
-directory alone is not a complete runtime/toolchain; it reuses that sysroot.
+First use `scripts/build_wasm_sysroot.sh` to build the Wasm headers and runtime
+libraries, then choose one application builder from the table. The bridge
+builder reuses the runtime and headers from this sysroot.
 
 The bridge's function-call interface does not require the supplied Lean function
-to use Lean's parser or other Lean-package APIs. Ordinary Lean logic can also
-be exposed through the `String → IO String` contract below. This describes the
+to use Lean's parser or other APIs from the `Lean` package. Ordinary Lean logic
+can also be exposed through the `String → IO String` contract below. This describes the
 bridge's calling contract; it does not mean that all functions with this type
 have been tested. The current build adds C++ kernel/library support even for
 simple functions.
 It does not run an ordinary `main` unchanged, support arbitrary function
-signatures, or provide every Lean API. Adapt the bridge for other signatures and follow the extension
+signatures, or provide every API from the `Lean` package. See the extension
 guidance below for elaborator and other unsupported execution paths.
 
 ## Included components
 
 | File | Purpose |
 | --- | --- |
-| `build.sh` | Generate the imported standard-library C, build native support for Wasm, and link the caller's module |
+| `build.sh` | Generate the imported standard-library C, build C++ support for Wasm, and link the caller's module |
 | `bridge.c` | Initialize the module and call its exported Lean function from C |
 | `support-init.cpp` | Initialize C++ utility, kernel, and library support |
 | `abi-compat.c` | Adapt run-init and compacted-region world arguments for the tested ABI |
 | `excluded-elaboration.c` | Stop if parser-only execution reaches excluded elaboration APIs |
 
-These files use the repository's license. The existing skill's sysroot
-builder and runtime stubs are reused; there is no second copy, distribution
-wrapper, application Worker, elaborator seed, JSON schema, or Lean example.
+These files use the repository's license.
 
-## Optional string bridge: contract and build
+## String bridge: contract and build
 
-When using this example, the application supplies a Lean module exporting a
-function with the type `String → IO String`. The caller specifies both its exported C symbol and the
+The application supplies a Lean module exporting a function with the type
+`String → IO String`. The caller specifies both its exported C symbol and the
 module initializer symbol found in generated C. `bridge.c` receives them as
 `LEAN_WASM_PROCESS` and `LEAN_WASM_INITIALIZER` compile definitions. Check the
 generated C signatures: this bridge assumes the one-argument IO ABI used by
@@ -124,11 +112,12 @@ does not include untracked files or act as a compatibility check.
 Use a fresh output directory and sysroot when changing toolchain, source,
 headers, flags, or ABI: incremental compilation uses source timestamps.
 
-## Calling the optional example from JavaScript
+## Calling the string bridge from JavaScript
 
-The generated `module.mjs` is the Emscripten loader; no handwritten JavaScript
-wrapper is supplied or required. Implement the following operations in the
-application when using this example, with whatever wrapper structure fits it:
+The generated `module.mjs` is the Emscripten loader. The C functions
+`lean_wasm_init` and `lean_wasm_call` in `bridge.c` are explicitly exported as
+`_lean_wasm_init` and `_lean_wasm_call` in JavaScript. Implement the following
+operations in the application:
 
 1. Import the loader's default module factory and await its result. The build
    uses `--no-entry`, so loader creation does not execute a Lean `main` or the
@@ -148,9 +137,7 @@ application when using this example, with whatever wrapper structure fits it:
 5. Release both input and returned output buffers with `_free`, including
    failure paths, for example in `finally`. Decode the result before freeing it.
 
-Calls are synchronous and should be serialized per module instance. These
-initialization and ownership operations are required by the current bridge;
-they do not require a particular JavaScript file or class structure.
+Calls are synchronous and should be serialized per module instance.
 
 ## Initialization, linking, and ownership
 
@@ -169,7 +156,7 @@ custom path initializes both the imported modules and C++ support.
 If generated `main` reports a missing `lean_initialize`, inspect its call and
 the linked inputs: the basic sysroot omits `src/initialize/init.cpp`, which
 defines that broader entry point. Matching version numbers alone do not add
-the missing initialization and Lean API/native support.
+the missing initialization and C++ support for the `Lean` package.
 
 The C bridge creates a Lean string, calls the exported function, checks its
 IO result, and copies the returned UTF-8 string into a `malloc` buffer before
@@ -177,7 +164,7 @@ releasing the Lean result. Application JavaScript owns both C buffers and must
 free them as described above. Do not return `lean_string_cstr` after releasing
 its owner.
 
-`abi-compat.c` supplies the world argument to renamed native implementations
+`abi-compat.c` supplies the world argument to renamed C++ implementations
 of `lean_run_init` and compacted-region read/save/free. The existing sysroot
 helper includes the temporary-file/directory ABI adapter. Inspect signatures
 again for another compiler/source combination: these adapters assume specific
@@ -211,8 +198,7 @@ To execute these APIs:
   chosen API, or explicitly stop unsupported execution paths. Do not replace
   missing functions with fabricated successful results.
 
-These extensions are intentionally not shipped as another application in this
-skill. Compare the supplied application's native and Wasm results, including
+Compare the application's native and Wasm results, including
 errors, Unicode, and repeated calls, after adapting imports/initialization.
 For browsers, use an application Worker as needed and serve pthread builds
 with COOP `same-origin` and COEP `require-corp`; check cross-origin isolation

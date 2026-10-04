@@ -4,7 +4,7 @@ The helper files under `scripts/` are covered by the repository's license. They 
 
 Their design was informed by, but not copied from:
 
-- The Lean 4 source tree layout, including `src/runtime__, `src/include/lean__, and `stage0/stdlib`.
+- The Lean 4 source tree layout, including `src/runtime`, `src/include/lean`, and `stage0/stdlib`.
 - The Lean 4 Emscripten settings in `src/CMakeLists.txt`.
 - The Lean 4 `script/lib/update-stage0` workflow for handling generated stage-0 C files.
 

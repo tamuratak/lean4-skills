@@ -18,16 +18,20 @@ Use this skill when a Lean 4 program must be compiled in two stages:
 
 The generated C is not standalone. It includes Lean runtime APIs from `lean/lean.h`, so host-side Lean archives must not be passed to Emscripten.
 
-Use `scripts/lean_to_wasm.sh` to run a basic `Init`/`Std` program through its generated `main`. To call individual Lean functions from JavaScript, choose a C interface suited to the application's arguments, results, initialization, and memory ownership. [references/lean-api-bridge.md](references/lean-api-bridge.md) describes the additional Lean API support and an optional, usable bridge example for `String → IO String` functions. Its `lean_wasm_init` and `lean_wasm_call` functions are defined by this repository; their names and string-based interface are not requirements of Lean or Emscripten. Use or adapt that example when it fits the application, or supply another interface. The two supplied application builders share the sysroot builder; choose one for a given module.
+Choose an application build path:
+
+- To run an `Init`/`Std` program through its generated `main`, use `scripts/lean_to_wasm.sh`.
+- To call individual Lean functions from JavaScript, read [references/lean-api-bridge.md](references/lean-api-bridge.md). It documents a `String → IO String` bridge example and a build configuration for Lean's parser. Adapt the bridge or supply a C interface suited to the application's arguments, results, initialization, and memory ownership.
+
+Both application builders use the sysroot built below; choose one for a given module.
 
 ## Requirements
 
 - `lean`, `emcc`, `em++`, `emar`, and Node.js are available on `PATH`.
-- `LEAN_SOURCE_DIR` points to a Lean 4 source tree containing the runtime and `stage0/stdlib`. An installed toolchain's `src/lean` directory alone is not enough because it does not contain the C++ runtime sources.
-- The Lean source tree contains `src/runtime`, `src/include/lean`, and generated C files under `stage0/stdlib`.
+- `LEAN_SOURCE_DIR` points to a Lean 4 source tree containing `src/runtime`, `src/include/lean`, and generated C files under `stage0/stdlib`. An installed toolchain's `src/lean` directory alone is not enough because it does not contain the C++ runtime sources.
 - Emscripten's Node headers are available. The helper detects them through `EMSDK_NODE` or `EMSDK`; set `LEAN_WASM_UV_INCLUDE` to the directory containing `uv.h` when detection fails.
 
-The helper builds a small Node-oriented sysroot containing `libleanrt.a`, `libInit.a`, and optionally `libStd.a`. Native `runtime/uv/*.cpp` files are not linked; the top-level `libuv.cpp` stubs and the included diagnostic stub provide the Emscripten configuration used here.
+In this skill, a **Wasm sysroot** is the directory of Lean headers and libraries built for WebAssembly. The builder includes `libleanrt.a`, `libInit.a`, and optionally `libStd.a`. Native `runtime/uv/*.cpp` files are not linked; the top-level `libuv.cpp` stubs and the included diagnostic stub provide the Emscripten configuration used here.
 
 ## Build the target sysroot
 
@@ -146,11 +150,11 @@ For `Std`, use `-Wl,--start-group -lStd -lInit -Wl,--end-group` before `-lleanrt
 
 ## Using modules from the Lean package
 
-The supplied sysroot covers the basic runtime and `Init`, with optional `Std`; it does not build the `Lean` package or the C++ initialization, kernel, and library support used by general Lean APIs. `--stdlib init-std` does not add support for `import Lean` or imports such as `Lean.Data.Json.Parser`.
+The supplied sysroot covers the runtime and `Init`, with optional `Std`. To use the `Lean` package, build generated C for the imported modules and include the C++ initialization, kernel, and library support needed by those APIs. `--stdlib init-std` does not add support for `import Lean` or imports such as `Lean.Data.Json.Parser`.
 
-For Lean's standard parser, elaborator, kernel support, or other Lean APIs, read [references/lean-api-bridge.md](references/lean-api-bridge.md). It explains the additional generated modules, C++ support, custom initialization, and ABI adjustments. These dependencies depend on the Lean APIs used, independently of the application's JavaScript interface. `scripts/lean-api-bridge/` includes an optional `String → IO String` bridge example and its build helper; supply the application Lean source separately. The example's configuration targets parser execution; elaborator-specific extensions are documented in the reference.
+For these dependencies, read [references/lean-api-bridge.md](references/lean-api-bridge.md). Its build configuration targets parser execution; the reference also explains initialization, ABI adjustments, and extensions needed for elaboration. The required support depends on the APIs used, independently of the application's JavaScript interface.
 
-Do not automatically replace `lean_initialize()` in the basic helper or satisfy it with a dummy function. The Lean API bridge uses a custom entry point and ABI adjustments from a tested compiler/source combination; inspect those ABI assumptions when adapting it. A different version or source revision alone does not prevent trying a build.
+Do not replace `lean_initialize()` with a dummy function to resolve a link error. Inspect the initialization and linked support described in the reference.
 
 ## Version and ABI troubleshooting
 
