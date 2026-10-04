@@ -1,6 +1,6 @@
 # Attribution and provenance
 
-The helper files under `scripts/` are original to this repository. They are not copied or substantially reproduced from the Lean 4 repository or from Emscripten.
+The basic helper files directly under `scripts/` are original to this repository. The components under `scripts/lean-api-bridge/` are adapted from the author's `lean-explainer` project, as described in `references/lean-api-bridge.md`. They are not copied or substantially reproduced from the Lean 4 repository or from Emscripten.
 
 Their design was informed by, but not copied from:
 

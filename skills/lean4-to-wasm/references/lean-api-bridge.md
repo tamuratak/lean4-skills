@@ -3,7 +3,7 @@
 Read this when JavaScript must call a Lean function, or the application uses
 Lean's parser or other Lean APIs.
 The basic skill helpers build only the runtime and `Init`/`Std`.
-[assets/lean-api-bridge](../assets/lean-api-bridge/) contains build/bridge components
+[scripts/lean-api-bridge](../scripts/lean-api-bridge/) contains build/bridge components
 adapted from `lean-explainer` commit
 `f6f31d322ef08aaf28d89b486cc00f5833a8556c`, not application Lean code. Supply
 that code in the consuming project. The build script is rewritten in Bash;
@@ -14,7 +14,7 @@ the bridge accepts application-specific C symbols.
 | Goal | Application build path | Execution entry point |
 | --- | --- | --- |
 | Run a basic `Init`/`Std` program with `main` | `scripts/lean_to_wasm.sh` | Generated `main`, through the Node loader |
-| Call an exported Lean function from JavaScript | `assets/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
+| Call an exported Lean function from JavaScript | `scripts/lean-api-bridge/build.sh` | `_lean_wasm_init`, then `_lean_wasm_call` |
 
 Both paths use an Emscripten JavaScript loader. The distinction is running
 `main` versus calling individual Lean functions, not whether JavaScript is
@@ -84,7 +84,7 @@ export OPENSSL_CONF=/dev/null
 export EMCC_BATCH_BUILD=0
 export EM_CACHE="$PWD/build/emcache"
 <skill-dir>/scripts/build_wasm_sysroot.sh --out-dir "$LEAN_WASM_SYSROOT" --stdlib init --jobs "$JOBS"
-bash <skill-dir>/assets/lean-api-bridge/build.sh /path/to/project/Application.lean \
+bash <skill-dir>/scripts/lean-api-bridge/build.sh /path/to/project/Application.lean \
   --initializer initialize_Application --function application_process
 ```
 
