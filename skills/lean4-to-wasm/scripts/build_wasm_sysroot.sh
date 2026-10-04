@@ -170,6 +170,7 @@ runtime_sources=(
 
 printf '%s\n' 'Compiling Lean runtime for Emscripten...'
 io_abi_compat=0
+runtime_objects=()
 for runtime_source in "${runtime_sources[@]}"; do
   source_file=$runtime_source_dir/$runtime_source
   [ -f "$source_file" ] || die "missing runtime source: $source_file"
@@ -186,20 +187,24 @@ for runtime_source in "${runtime_sources[@]}"; do
     "${runtime_flags[@]}" \
     -I"$out_dir/include" -I"$out_dir" -I"$lean_source/src" -I"$uv_include" \
     -c "$source_file" -o "$out_dir/runtime-obj/${runtime_source%.cpp}.o"
+  runtime_objects+=("$out_dir/runtime-obj/${runtime_source%.cpp}.o")
 done
 
 # Native runtime/uv/*.cpp is intentionally not included; libuv.cpp supplies the Emscripten stubs.
 stub_source=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/uv_strerror_stub.cpp
 "$emxx_bin" -std=c++20 -O2 -DLEAN_EMSCRIPTEN -DNDEBUG -pthread -fwasm-exceptions \
   -I"$out_dir/include" -c "$stub_source" -o "$out_dir/runtime-obj/uv_strerror_stub.o"
+runtime_objects+=("$out_dir/runtime-obj/uv_strerror_stub.o")
 if [ "$io_abi_compat" -eq 1 ]; then
   io_stub_source=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/io_abi_stub.cpp
   "$emxx_bin" -std=c++20 -O2 -DLEAN_EMSCRIPTEN -DNDEBUG -pthread -fwasm-exceptions \
     -I"$out_dir/include" -c "$io_stub_source" -o "$out_dir/runtime-obj/io_abi_stub.o"
+  runtime_objects+=("$out_dir/runtime-obj/io_abi_stub.o")
 fi
 
 runtime_archive_tmp=$out_dir/lib/libleanrt.a.tmp.$$
-"$emar_bin" rcs "$runtime_archive_tmp" "$out_dir"/runtime-obj/*.o
+# Archive only this build's inputs; old objects may remain in the output directory.
+"$emar_bin" rcs "$runtime_archive_tmp" "${runtime_objects[@]}"
 mv -f "$runtime_archive_tmp" "$out_dir/lib/libleanrt.a"
 
 build_package() {
@@ -212,21 +217,31 @@ build_package() {
   "$emcc_bin" -O2 -DLEAN_EMSCRIPTEN -pthread -I"$out_dir/include" \
     -c "$stage0_stdlib_dir/$package.c" -o "$package_obj_dir/__root__.o"
 
+  package_sources=()
+  package_objects=("$package_obj_dir/__root__.o")
+  while IFS= read -r -d '' source_file; do
+    package_sources+=("$source_file")
+    relative=${source_file#"$stage0_stdlib_dir/"}
+    package_objects+=("$out_dir/stdlib-obj/${relative%.c}.o")
+  done < <(find "$package_source_dir" -type f -name '*.c' -print0)
+
   export L4W_STAGE0_ROOT=$stage0_stdlib_dir
   export L4W_OUT_DIR=$out_dir
   export L4W_EMCC=$emcc_bin
-  find "$package_source_dir" -type f -name '*.c' -print0 | \
-    xargs -0 -n 1 -P "$parallel_jobs" sh -c '
-      source_file=$1
-      relative=${source_file#"$L4W_STAGE0_ROOT/"}
-      object_file="$L4W_OUT_DIR/stdlib-obj/${relative%.c}.o"
-      mkdir -p "$(dirname "$object_file")"
-      "$L4W_EMCC" -O2 -DLEAN_EMSCRIPTEN -pthread -I"$L4W_OUT_DIR/include" \
-        -c "$source_file" -o "$object_file"
-    ' sh
+  if [ "${#package_sources[@]}" -gt 0 ]; then
+    printf '%s\0' "${package_sources[@]}" | \
+      xargs -0 -n 1 -P "$parallel_jobs" sh -c '
+        source_file=$1
+        relative=${source_file#"$L4W_STAGE0_ROOT/"}
+        object_file="$L4W_OUT_DIR/stdlib-obj/${relative%.c}.o"
+        mkdir -p "$(dirname "$object_file")"
+        "$L4W_EMCC" -O2 -DLEAN_EMSCRIPTEN -pthread -I"$L4W_OUT_DIR/include" \
+          -c "$source_file" -o "$object_file"
+      ' sh
+  fi
 
   archive_tmp=$out_dir/lib/lib$package.a.tmp.$$
-  find "$package_obj_dir" -type f -name '*.o' -print0 | \
+  printf '%s\0' "${package_objects[@]}" | \
     xargs -0 "$emar_bin" rcs "$archive_tmp"
   mv -f "$archive_tmp" "$out_dir/lib/lib$package.a"
 }
